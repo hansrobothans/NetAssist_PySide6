@@ -11,7 +11,7 @@
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QApplication, QTabBar
 from PySide6.QtCore import Qt, QRectF, Signal
-from PySide6.QtGui import QPainter, QColor, QMouseEvent
+from PySide6.QtGui import QPainter, QColor, QMouseEvent, QPalette
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QByteArray
 
@@ -51,7 +51,7 @@ class TitleBarButton(QPushButton):
             return
 
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         svg_str = ICONS[self._icon_name]
         svg_str = svg_str.replace('fill="currentColor"', f'fill="{self._icon_color.name()}"')
@@ -93,10 +93,19 @@ class CloseButton(TitleBarButton):
 
 
 class TitleTabBar(QTabBar):
-    """标题栏内嵌标签页栏.
+    """标题栏内嵌标签页栏 - 自绘标签页，参照 electerm 风格.
 
-    继承 QTabBar，深色主题样式，支持标签页可关闭。
+    使用 paintEvent 自绘，避免 QTabBar::tab 样式表级联失效问题。
     """
+
+    # 浅色主题配色
+    _COLOR_BG = QColor("#f0f0f0")
+    _COLOR_TAB_ACTIVE = QColor("#ffffff")
+    _COLOR_TAB_HOVER = QColor("#e5e5e5")
+    _COLOR_TEXT = QColor("#666666")
+    _COLOR_TEXT_ACTIVE = QColor("#333333")
+    _COLOR_TEXT_HOVER = QColor("#444444")
+    _COLOR_ACCENT = QColor("#0078d4")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -105,17 +114,67 @@ class TitleTabBar(QTabBar):
         self.setMovable(True)
         self.setExpanding(False)
         self.setDrawBase(False)
-        # 不要让 tab bar 捕获拖拽事件传递给父级
         self.setElideMode(Qt.ElideRight)
+        self.setMouseTracking(True)
+        self._hover_index = -1
+
+    def paintEvent(self, event):
+        """自绘标签页背景和文字."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # 绘制整体背景
+        painter.fillRect(self.rect(), self._COLOR_BG)
+
+        for i in range(self.count()):
+            rect = self.tabRect(i)
+            is_selected = (i == self.currentIndex())
+            is_hovered = (i == self._hover_index and not is_selected)
+
+            # 标签页背景
+            if is_selected:
+                painter.fillRect(rect, self._COLOR_TAB_ACTIVE)
+                # 选中标签顶部蓝色指示条
+                painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._COLOR_ACCENT)
+                painter.setPen(self._COLOR_TEXT_ACTIVE)
+            elif is_hovered:
+                painter.fillRect(rect, self._COLOR_TAB_HOVER)
+                painter.setPen(self._COLOR_TEXT_HOVER)
+            else:
+                painter.setPen(self._COLOR_TEXT)
+
+            # 绘制文字（右侧留出关闭按钮空间）
+            text_rect = rect.adjusted(12, 2, -24, 0)
+            elided = painter.fontMetrics().elidedText(
+                self.tabText(i), Qt.TextElideMode.ElideRight, text_rect.width()
+            )
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided)
+
+        painter.end()
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """跟踪悬停标签页索引，空白区域交给父级."""
+        index = self.tabAt(event.position().toPoint())
+        if index != self._hover_index:
+            self._hover_index = index
+            self.update()
+        if index >= 0:
+            super().mouseMoveEvent(event)
+        else:
+            event.ignore()
+
+    def leaveEvent(self, event):
+        """鼠标离开时清除悬停状态."""
+        self._hover_index = -1
+        self.update()
+        super().leaveEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
         """点击 tab 时正常处理，点击空白区域交给父级处理拖拽."""
         index = self.tabAt(event.position().toPoint())
         if index >= 0:
-            # 点击在 tab 上，正常处理
             super().mousePressEvent(event)
         else:
-            # 点击在 tab bar 空白区域，交给父级（TitleBar）处理拖拽
             event.ignore()
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
@@ -152,6 +211,9 @@ class TitleBar(QWidget):
 
         self.setFixedHeight(32)
         self.setObjectName("titleBar")
+
+        # QWidget 子类必须设置此属性才能响应样式表的 background-color
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._init_ui()
 

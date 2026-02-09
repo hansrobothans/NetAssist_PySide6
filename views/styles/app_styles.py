@@ -349,6 +349,127 @@ class AppStyles:
         }
     """
 
+    # ===== 主窗口全局样式 =====
+    MAIN_WINDOW = """
+        QMainWindow {
+            background-color: #f0f0f0;
+        }
+        /* 侧边栏样式 - 参照 electerm sidebar.styl */
+        #sidebar {
+            background-color: #1f1f1f;
+            border: none;
+        }
+        #sidebarButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 0px;
+            min-width: 36px;
+            max-width: 36px;
+            min-height: 36px;
+            max-height: 36px;
+            padding: 0px;
+        }
+        #sidebarButton:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        #sidebarButton:pressed {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        /* 通用按钮样式 */
+        QPushButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 80px;
+        }
+        QPushButton:hover {
+            background-color: #45a049;
+        }
+        QPushButton:disabled {
+            background-color: #cccccc;
+        }
+        QGroupBox {
+            font-weight: bold;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 5px;
+        }
+        QComboBox, QSpinBox, QLineEdit {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        /* 内容区 QStackedWidget */
+        #contentStack {
+            background-color: #ffffff;
+            border: none;
+        }
+        /* 标题栏内嵌标签页样式 - 具体样式在 TitleTabBar 组件中直接设置 */
+        /* 标题栏 "+" 添加按钮 */
+        #addTabButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 0px;
+            min-width: 32px;
+            max-width: 32px;
+            min-height: 32px;
+            max-height: 32px;
+            padding: 0px;
+        }
+        #addTabButton:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        #addTabButton:pressed {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        /* 自定义标题栏样式 */
+        #titleBar {
+            background-color: #2b2b2b;
+            border: none;
+        }
+        #titleBarButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 0px;
+            min-width: 46px;
+            max-width: 46px;
+            min-height: 32px;
+            max-height: 32px;
+            padding: 0px;
+        }
+        #titleBarButton:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        #titleBarButton:pressed {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        #titleBarCloseButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 0px;
+            min-width: 46px;
+            max-width: 46px;
+            min-height: 32px;
+            max-height: 32px;
+            padding: 0px;
+        }
+        #titleBarCloseButton:hover {
+            background-color: #e81123;
+        }
+        #titleBarCloseButton:pressed {
+            background-color: #bf0f1d;
+        }
+    """
+
     @staticmethod
     def get_status_style(bg_color: str, border_color: str = None) -> str:
         """获取动态状态样式.
