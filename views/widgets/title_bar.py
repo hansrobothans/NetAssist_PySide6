@@ -1,15 +1,16 @@
 # views/widgets/title_bar.py
-"""自定义窗口标题栏组件.
+"""自定义窗口标题栏组件（WPS/Chrome 风格标签页集成）.
 
 实现无边框窗口的自定义标题栏，包含：
-- 窗口标题
+- 标签页（TitleTabBar）直接嵌入标题栏
+- "+" 添加标签页按钮
 - 最小化、最大化/还原、关闭按钮
-- 拖拽移动窗口
-- 双击最大化/还原
+- 拖拽移动：使用 Qt 6 的 QWindow.startSystemMove()（支持 Aero Snap）
+- 双击最大化/还原（仅空白区域）
 """
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, QPoint, QRectF
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QApplication, QTabBar
+from PySide6.QtCore import Qt, QRectF, Signal
 from PySide6.QtGui import QPainter, QColor, QMouseEvent
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QByteArray
@@ -82,7 +83,6 @@ class CloseButton(TitleBarButton):
         self._hover = True
         self._icon_color = QColor("#ffffff")
         self.update()
-        # 跳过 TitleBarButton.enterEvent，直接调用 QPushButton
         QPushButton.enterEvent(self, event)
 
     def leaveEvent(self, event):
@@ -92,14 +92,63 @@ class CloseButton(TitleBarButton):
         QPushButton.leaveEvent(self, event)
 
 
+class TitleTabBar(QTabBar):
+    """标题栏内嵌标签页栏.
+
+    继承 QTabBar，深色主题样式，支持标签页可关闭。
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("titleTabBar")
+        self.setTabsClosable(True)
+        self.setMovable(True)
+        self.setExpanding(False)
+        self.setDrawBase(False)
+        # 不要让 tab bar 捕获拖拽事件传递给父级
+        self.setElideMode(Qt.ElideRight)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """点击 tab 时正常处理，点击空白区域交给父级处理拖拽."""
+        index = self.tabAt(event.position().toPoint())
+        if index >= 0:
+            # 点击在 tab 上，正常处理
+            super().mousePressEvent(event)
+        else:
+            # 点击在 tab bar 空白区域，交给父级（TitleBar）处理拖拽
+            event.ignore()
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        """双击空白区域交给父级处理."""
+        index = self.tabAt(event.position().toPoint())
+        if index >= 0:
+            super().mouseDoubleClickEvent(event)
+        else:
+            event.ignore()
+
+
+class AddTabButton(TitleBarButton):
+    """标题栏中的 "+" 添加标签页按钮."""
+
+    def __init__(self, parent=None):
+        super().__init__("plus", "添加标签页", parent)
+        self.setObjectName("addTabButton")
+        self.setFixedSize(32, 32)
+
+
 class TitleBar(QWidget):
-    """自定义窗口标题栏."""
+    """自定义窗口标题栏（WPS/Chrome 风格）.
+
+    标签页直接嵌入标题栏区域，与窗口控制按钮同行。
+    拖拽移动使用 Qt 6 的 QWindow.startSystemMove()，
+    支持 Windows Aero Snap（拖到顶部全屏、拖到边缘半屏）。
+    """
+
+    add_tab_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._window = None
-        self._dragging = False
-        self._drag_pos = QPoint()
 
         self.setFixedHeight(32)
         self.setObjectName("titleBar")
@@ -108,13 +157,17 @@ class TitleBar(QWidget):
 
     def _init_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 0, 0, 0)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 标题文字
-        self._title_label = QLabel("")
-        self._title_label.setObjectName("titleBarLabel")
-        layout.addWidget(self._title_label)
+        # 标签页栏
+        self.tab_bar = TitleTabBar(self)
+        layout.addWidget(self.tab_bar)
+
+        # "+" 添加按钮
+        self._btn_add = AddTabButton(self)
+        self._btn_add.clicked.connect(self.add_tab_clicked.emit)
+        layout.addWidget(self._btn_add)
 
         # 弹性空间
         layout.addStretch()
@@ -134,10 +187,6 @@ class TitleBar(QWidget):
         self.btn_close.clicked.connect(self._on_close)
         layout.addWidget(self.btn_close)
 
-    def set_title(self, title: str):
-        """设置标题文字."""
-        self._title_label.setText(title)
-
     def _get_window(self):
         """获取顶层窗口."""
         if self._window is None:
@@ -151,42 +200,84 @@ class TitleBar(QWidget):
         win = self._get_window()
         if win.isMaximized():
             win.showNormal()
-            self.btn_maximize.set_icon_name("window-maximize")
-            self.btn_maximize.setToolTip("最大化")
         else:
             win.showMaximized()
-            self.btn_maximize.set_icon_name("window-restore")
-            self.btn_maximize.setToolTip("还原")
 
     def _on_close(self):
         self._get_window().close()
 
-    # --- 拖拽移动窗口 ---
+    def _is_blank_area(self, pos):
+        """判断点击位置是否为标题栏空白区域（非子控件）."""
+        child = self.childAt(pos)
+        if child is None:
+            return True
+        # tab_bar 内部空白区域也算标题栏空白
+        if child is self.tab_bar:
+            tab_pos = self.tab_bar.mapFromParent(pos)
+            if self.tab_bar.tabAt(tab_pos) < 0:
+                return True
+        return False
+
+    # --- 拖拽移动（Qt 6 原生 API，支持 Aero Snap） ---
+
+    _drag_start_pos = None      # 最大化拖拽起始全局坐标
+    _drag_start_ratio = 0.0     # 鼠标在标题栏的水平比例
+    _manual_drag_offset = None  # 手动拖拽时光标相对窗口左上角的偏移
 
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
-            self._dragging = True
-            self._drag_pos = event.globalPosition().toPoint() - self._get_window().frameGeometry().topLeft()
+        if event.button() == Qt.MouseButton.LeftButton:
+            pos = event.position().toPoint()
+            if not self._is_blank_area(pos):
+                super().mousePressEvent(event)
+                return
+
+            win = self._get_window()
+            if win and win.windowHandle():
+                if win.isMaximized():
+                    self._drag_start_pos = event.globalPosition().toPoint()
+                    self._drag_start_ratio = event.position().x() / self.width()
+                else:
+                    win.windowHandle().startSystemMove()
             event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent):
-        if self._dragging and event.buttons() & Qt.LeftButton:
+        # 最大化状态下检测拖拽 → 还原窗口并切换到手动拖拽
+        if self._drag_start_pos is not None:
             win = self._get_window()
-            # 拖拽时如果是最大化状态，先还原
-            if win.isMaximized():
-                win.showNormal()
-                self.btn_maximize.set_icon_name("window-maximize")
-                self.btn_maximize.setToolTip("最大化")
-                # 重新计算拖拽位置，让鼠标在标题栏中间
-                self._drag_pos = QPoint(win.width() // 2, self.height() // 2)
-            win.move(event.globalPosition().toPoint() - self._drag_pos)
+            if win and win.isMaximized():
+                delta = event.globalPosition().toPoint() - self._drag_start_pos
+                if abs(delta.x()) > 4 or abs(delta.y()) > 4:
+                    normal_width = win.normalGeometry().width()
+
+                    win.showNormal()
+                    QApplication.processEvents()
+
+                    cursor = event.globalPosition().toPoint()
+                    new_x = cursor.x() - int(self._drag_start_ratio * normal_width)
+                    new_y = cursor.y() - int(event.position().y())
+                    win.move(new_x, new_y)
+
+                    self._manual_drag_offset = cursor - win.pos()
+                    self._drag_start_pos = None
+            event.accept()
+            return
+
+        # 手动拖拽中：跟随鼠标移动窗口
+        if self._manual_drag_offset is not None:
+            win = self._get_window()
+            if win:
+                cursor = event.globalPosition().toPoint()
+                win.move(cursor - self._manual_drag_offset)
             event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        self._dragging = False
-        event.accept()
+        self._drag_start_pos = None
+        self._manual_drag_offset = None
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
-            self._on_maximize()
-            event.accept()
+        if event.button() == Qt.MouseButton.LeftButton:
+            pos = event.position().toPoint()
+            if self._is_blank_area(pos):
+                self._on_maximize()
+                event.accept()
