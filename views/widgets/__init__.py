@@ -6,6 +6,7 @@
 
 from .log_widget import LogWidget, LogSignals, create_log_widget
 from .widget_factory import WidgetFactory, LabeledInput
+from .title_bar import TitleBar
 
 __all__ = [
     'LogWidget',
@@ -13,4 +14,5 @@ __all__ = [
     'create_log_widget',
     'WidgetFactory',
     'LabeledInput',
+    'TitleBar',
 ]

@@ -18,6 +18,7 @@ from .tabs import LogTab
 from .tabs.placeholder_tab import PlaceholderTab
 from .sidebar import Sidebar
 from .sidebar.add_tab_menu import AddTabMenu
+from .widgets.title_bar import TitleBar
 from version import APP_TITLE
 
 if TYPE_CHECKING:
@@ -60,9 +61,13 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """初始化UI.
 
-        创建窗口的主要界面元素：侧边栏 + 标签页。
+        创建窗口的主要界面元素：侧边栏 + 标题栏 + 标签页。
+        无边框窗口，自定义标题栏在右侧顶部。
         """
         logger.trace(f"")
+
+        # 去掉系统标题栏
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setWindowTitle(APP_TITLE)
         self.setGeometry(100, 100, 1400, 800)
 
@@ -79,11 +84,16 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         main_layout.addWidget(self.sidebar)
 
-        # 主内容区（垂直布局）
+        # 主内容区（垂直布局：标题栏 + 标签页）
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
+
+        # 自定义标题栏
+        self.title_bar = TitleBar()
+        self.title_bar.set_title(APP_TITLE)
+        content_layout.addWidget(self.title_bar)
 
         # 创建标签页
         self.tabs = QTabWidget()
@@ -254,6 +264,47 @@ class MainWindow(QMainWindow):
             }
             QTabBar::tab:hover {
                 background-color: #d0d0d0;
+            }
+            /* 自定义标题栏样式 */
+            #titleBar {
+                background-color: #2b2b2b;
+                border: none;
+            }
+            #titleBarLabel {
+                color: #cccccc;
+                font-size: 12px;
+            }
+            #titleBarButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 46px;
+                max-width: 46px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }
+            #titleBarButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+            #titleBarButton:pressed {
+                background-color: rgba(255, 255, 255, 0.15);
+            }
+            #titleBarCloseButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 46px;
+                max-width: 46px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }
+            #titleBarCloseButton:hover {
+                background-color: #e81123;
+            }
+            #titleBarCloseButton:pressed {
+                background-color: #bf0f1d;
             }
         """)
 
