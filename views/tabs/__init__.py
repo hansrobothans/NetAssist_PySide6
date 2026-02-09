@@ -6,7 +6,9 @@
 
 
 from .log_tab import LogTab
+from .placeholder_tab import PlaceholderTab
 
 __all__ = [
     "LogTab",
+    "PlaceholderTab",
 ]

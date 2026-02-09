@@ -15,7 +15,9 @@ from PySide6.QtCore import Qt
 from loguru import logger
 
 from .tabs import LogTab
+from .tabs.placeholder_tab import PlaceholderTab
 from .sidebar import Sidebar
+from .sidebar.add_tab_menu import AddTabMenu
 from version import APP_TITLE
 
 if TYPE_CHECKING:
@@ -104,15 +106,33 @@ class MainWindow(QMainWindow):
         self.sidebar.log_clicked.connect(self._on_log_clicked)
         self.sidebar.about_clicked.connect(self._on_about_clicked)
 
+        # 添加标签页菜单
+        self._add_tab_menu = AddTabMenu(self)
+        self._add_tab_menu.tab_requested.connect(self._create_tab)
+
     def _on_menu_clicked(self):
         """菜单按钮点击处理."""
         logger.debug("菜单按钮点击")
         # TODO: 显示菜单面板
 
     def _on_add_clicked(self):
-        """添加按钮点击处理."""
+        """添加按钮点击处理 - 弹出添加标签页菜单."""
         logger.debug("添加按钮点击")
-        # TODO: 添加新标签页
+        # 在添加按钮右侧弹出菜单
+        btn = self.sidebar.btn_add
+        pos = btn.mapToGlobal(btn.rect().topRight())
+        self._add_tab_menu.show(pos)
+
+    def _create_tab(self, tab_type: str):
+        """根据类型创建并添加标签页.
+
+        :param tab_type: 标签页类型标识
+        """
+        tab_name = AddTabMenu.TAB_TYPES.get(tab_type, tab_type)
+        tab = PlaceholderTab(tab_name)
+        index = self.tabs.addTab(tab, tab_name)
+        self.tabs.setCurrentIndex(index)
+        logger.info(f"已添加标签页: {tab_name}")
 
     def _on_bookmark_clicked(self):
         """收藏按钮点击处理."""
