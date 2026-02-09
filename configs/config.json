@@ -4,19 +4,14 @@
         "theme": "light",
         "_theme_comment": "主题: dark / light"
     },
-
     "output": {
         "_comment": "输出路径配置",
-
         "auto_generate": true,
         "_auto_generate_comment": "是否自动生成基于时间戳的输出目录。true=自动生成，false=使用手动指定目录",
-
         "root_dir": "./resources/output",
         "_root_dir_comment": "输出根目录（相对路径或绝对路径）。当 auto_generate=true 时，会在此目录下创建时间戳子目录；当 auto_generate=false 时，直接使用此目录作为输出根目录",
-
         "manual_dir": null,
         "_manual_dir_comment": "手动指定的输出目录（仅在 auto_generate=false 时使用）。如果为 null，则使用 root_dir",
-
         "subdirs": {
             "logs": "logs",
             "sensor_data": "sensor_data",
@@ -24,106 +19,77 @@
             "_comment": "子目录名称配置，可以自定义各个子目录的名称"
         }
     },
-
     "logging": {
         "_comment": "日志配置",
-
         "level": "TRACE",
         "_level_comment": "全局日志级别: TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR, CRITICAL",
-
         "console": {
             "enabled": true,
             "_enabled_comment": "是否输出日志到控制台",
-
             "colorize": true,
             "_colorize_comment": "控制台日志是否使用颜色",
-
             "format": "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>P{extra[process]}</cyan>/<magenta>T{extra[thread]}</magenta> | <cyan>{extra[file]}</cyan> | <cyan>{extra[name]}</cyan>:<cyan>{extra[function]}</cyan>:<cyan>{extra[line]}</cyan> - <level>{message}</level>",
             "_format_comment": "控制台日志格式（包含进程/线程信息和原始位置）"
         },
-
         "files": [
             {
                 "name": "all",
                 "_name_comment": "所有级别的日志文件（TRACE及以上）",
-
                 "enabled": true,
                 "_enabled_comment": "是否启用此日志文件",
-
                 "filename": "all.log",
                 "_filename_comment": "日志文件名（相对于 logs 目录）",
-
                 "level": "TRACE",
                 "_level_comment": "记录所有级别的日志（TRACE及以上）",
-
                 "rotation": "10 MB",
                 "_rotation_comment": "每10MB轮转一次",
-
                 "retention": "7 days",
                 "_retention_comment": "保留7天",
-
                 "compression": "zip",
                 "_compression_comment": "压缩为zip格式",
-
                 "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | P{extra[process]}/T{extra[thread]} | {extra[file]} | {extra[name]}:{extra[function]}:{extra[line]} - {message}",
                 "_format_comment": "文件日志格式（包含进程/线程信息和原始位置）"
             },
             {
                 "name": "info",
                 "_name_comment": "INFO及以上级别的日志文件",
-
                 "enabled": true,
                 "_enabled_comment": "是否启用此日志文件",
-
                 "filename": "info.log",
                 "_filename_comment": "日志文件名",
-
                 "level": "INFO",
                 "_level_comment": "只记录 INFO 及以上级别的日志",
-
                 "rotation": null,
                 "_rotation_comment": "不设置轮转策略",
-
                 "retention": null,
                 "_retention_comment": "不设置保留时间",
-
                 "compression": null,
                 "_compression_comment": "不压缩",
-
                 "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | P{extra[process]}/T{extra[thread]} | {extra[file]} | {extra[name]}:{extra[function]}:{extra[line]} - {message}",
                 "_format_comment": "文件日志格式（包含进程/线程信息和原始位置）"
             },
             {
                 "name": "error",
                 "_name_comment": "错误日志文件",
-
                 "enabled": true,
                 "_enabled_comment": "是否启用此日志文件",
-
                 "filename": "error.log",
                 "_filename_comment": "错误日志文件名",
-
                 "level": "ERROR",
                 "_level_comment": "只记录 ERROR 及以上级别的日志",
-
                 "rotation": null,
                 "_rotation_comment": "不设置轮转策略",
-
                 "retention": "30 days",
                 "_retention_comment": "错误日志保留 30 天",
-
                 "compression": null,
                 "_compression_comment": "不压缩",
-
                 "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | P{extra[process]}/T{extra[thread]} | {extra[file]} | {extra[name]}:{extra[function]}:{extra[line]} - {message}\n{exception}",
                 "_format_comment": "错误日志格式（包含进程/线程信息、原始位置和异常堆栈）"
             }
         ],
         "_files_comment": "日志文件列表，可配置多个日志文件，每个文件可以独立设置级别、轮转策略等",
-
         "backtrace": true,
         "_backtrace_comment": "是否在异常日志中显示完整的堆栈回溯",
-
         "diagnose": false,
         "_diagnose_comment": "是否显示诊断信息（变量值等），调试时可开启"
     }
