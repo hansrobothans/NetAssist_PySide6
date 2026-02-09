@@ -495,6 +495,23 @@ class LogWidget(QWidget):
             self.unregister_logger()
             self.register_logger()
 
+    def apply_theme(self, theme):
+        """应用主题到日志组件.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self.dark_theme = (theme.name == "dark")
+        self.log_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {theme.log_bg};
+                color: {theme.log_text};
+                border: 1px solid {theme.log_border};
+            }}
+        """)
+        # 重新渲染日志以更新默认文本颜色
+        self._refresh_logs()
+
     def closeEvent(self, event):
         """关闭事件 - 自动移除日志处理器.
 

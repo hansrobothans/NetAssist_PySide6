@@ -1,6 +1,8 @@
 # views/sidebar/sidebar_button.py
 """侧边栏图标按钮组件 - 参照 electerm 风格."""
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QPainter, QColor
@@ -8,6 +10,9 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QByteArray
 
 from resources.icons import ICONS
+
+if TYPE_CHECKING:
+    from models.theme_data import ThemeData
 
 
 class SidebarButton(QPushButton):
@@ -26,7 +31,9 @@ class SidebarButton(QPushButton):
         super().__init__(parent)
 
         self._icon_name = icon_name
-        self._icon_color = QColor("#888888")  # 默认颜色
+        self._icon_color_normal = QColor("#888888")
+        self._icon_color_hover = QColor("#ffffff")
+        self._icon_color = self._icon_color_normal
         self._hover = False
 
         self.setToolTip(tooltip)
@@ -37,14 +44,14 @@ class SidebarButton(QPushButton):
     def enterEvent(self, event):
         """鼠标进入事件."""
         self._hover = True
-        self._icon_color = QColor("#ffffff")
+        self._icon_color = self._icon_color_hover
         self.update()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         """鼠标离开事件."""
         self._hover = False
-        self._icon_color = QColor("#888888")
+        self._icon_color = self._icon_color_normal
         self.update()
         super().leaveEvent(event)
 
@@ -74,3 +81,14 @@ class SidebarButton(QPushButton):
         renderer.render(painter, QRectF(x, y, icon_size, icon_size))
 
         painter.end()
+
+    def apply_theme(self, theme: "ThemeData"):
+        """应用主题颜色.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self._icon_color_normal = QColor(theme.sidebar_icon)
+        self._icon_color_hover = QColor(theme.sidebar_icon_hover)
+        self._icon_color = self._icon_color_hover if self._hover else self._icon_color_normal
+        self.update()

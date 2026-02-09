@@ -1,4 +1,10 @@
 {
+    "appearance": {
+        "_comment": "外观配置",
+        "theme": "light",
+        "_theme_comment": "主题: dark / light"
+    },
+
     "output": {
         "_comment": "输出路径配置",
 

@@ -17,6 +17,7 @@ from services.container.factory import ServiceFactory
 
 if TYPE_CHECKING:
     from services.core import ConfigService
+    from services.core.theme import ThemeService
     from services.network import TcpClientService, TcpServerService
     from services.hardware import Opt4001Service
     from services.protocol import ProtocolService
@@ -79,6 +80,12 @@ class ServiceContainer(QObject):
     def config(self) -> "ConfigService":
         """获取配置服务."""
         return self._config
+
+    # ==================== Theme 服务 ====================
+    @property
+    def theme(self) -> "ThemeService":
+        """获取主题服务."""
+        return self._factory.theme
 
     # ==================== Network 服务 ====================
     

@@ -2,13 +2,9 @@
 """视图模型层 - ViewModel Layer"""
 
 from .base_viewmodel import BaseViewModel
-from .image_sticking_viewmodel import ImageStickingViewModel
-from .sensor_test_viewmodel import SensorTestViewModel
-from .test_server_viewmodel import TestServerViewModel
+from .theme_viewmodel import ThemeViewModel
 
 __all__ = [
     'BaseViewModel',
-    'ImageStickingViewModel',
-    'SensorTestViewModel',
-    'TestServerViewModel',
+    'ThemeViewModel',
 ]

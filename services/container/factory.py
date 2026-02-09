@@ -13,6 +13,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from services.core import ConfigService
+    from services.core.theme import ThemeService
 
 
 class ServiceFactory:
@@ -38,11 +39,23 @@ class ServiceFactory:
         # Core (构造时注入)
         self._config = config
 
+        # 懒加载单例缓存
+        self._theme_service: Optional["ThemeService"] = None
+
     # ==================== 属性 ====================
     @property
     def config(self) -> "ConfigService":
         """获取配置服务."""
         return self._config
+
+    # ==================== Theme 服务 ====================
+    @property
+    def theme(self) -> "ThemeService":
+        """获取主题服务（懒加载）."""
+        if self._theme_service is None:
+            from services.core.theme import ThemeService
+            self._theme_service = ThemeService(config=self._config)
+        return self._theme_service
 
     # ==================== Level 0: Network ====================
     
@@ -55,4 +68,4 @@ class ServiceFactory:
     # ==================== 清理 ====================
     def clear_all(self) -> None:
         """清理所有服务引用（不调用服务的清理方法）."""
-        pass
+        self._theme_service = None

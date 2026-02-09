@@ -1,11 +1,16 @@
 # views/sidebar/sidebar.py
 """侧边栏主组件 - 参照 electerm 风格."""
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSpacerItem, QSizePolicy
 from PySide6.QtCore import Signal
 from loguru import logger
 
 from .sidebar_button import SidebarButton
+
+if TYPE_CHECKING:
+    from models.theme_data import ThemeData
 
 
 class Sidebar(QWidget):
@@ -21,6 +26,7 @@ class Sidebar(QWidget):
     settings_clicked = Signal()   # 设置按钮点击
     log_clicked = Signal()        # 日志按钮点击
     about_clicked = Signal()      # 关于按钮点击
+    theme_clicked = Signal()      # 主题切换按钮点击
 
     def __init__(self, parent=None):
         """初始化侧边栏.
@@ -45,6 +51,7 @@ class Sidebar(QWidget):
         - 设置: SettingOutlined
         - 日志: FileTextOutlined
         - 关于: InfoCircleOutlined
+        - 主题: BulbOutlined（底部）
         """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -80,7 +87,23 @@ class Sidebar(QWidget):
         self.btn_about.clicked.connect(self.about_clicked.emit)
         layout.addWidget(self.btn_about)
 
-        # 弹性空间，将按钮推到顶部
+        # 弹性空间，将上方按钮推到顶部，下方按钮推到底部
         layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
+        # 主题切换按钮 - BulbOutlined（底部）
+        self.btn_theme = SidebarButton("bulb", "切换主题")
+        self.btn_theme.clicked.connect(self.theme_clicked.emit)
+        layout.addWidget(self.btn_theme)
+
         logger.trace("侧边栏UI初始化完成")
+
+    def apply_theme(self, theme: "ThemeData"):
+        """应用主题到侧边栏所有按钮.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        for btn in (self.btn_menu, self.btn_add, self.btn_bookmark,
+                    self.btn_settings, self.btn_log, self.btn_about,
+                    self.btn_theme):
+            btn.apply_theme(theme)

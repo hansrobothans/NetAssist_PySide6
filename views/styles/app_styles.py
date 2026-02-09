@@ -1,18 +1,24 @@
 """应用样式定义.
 
 此模块定义应用程序中使用的所有样式常量和方法。
+主题相关的样式通过工厂方法生成，接收 ThemeData 参数。
 """
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional
+
 from loguru import logger
+
+if TYPE_CHECKING:
+    from models.theme_data import ThemeData
 
 
 class AppStyles:
     """集中管理应用中的所有样式.
 
-    提供各种UI组件的样式定义和动态样式生成方法。
+    - 状态色（success/danger/warning 等）不随主题变化，保留为类常量
+    - 主窗口全局样式、菜单样式等通过静态工厂方法生成
     """
 
-    # ===== 颜色常量 =====
+    # ===== 状态色常量（不随主题变化） =====
     COLOR_SUCCESS = "#4CAF50"
     COLOR_SUCCESS_BG = "#e8f5e9"
     COLOR_DANGER = "#f44336"
@@ -23,12 +29,8 @@ class AppStyles:
     COLOR_INFO_BG = "#e3f2fd"
     COLOR_PRIMARY = "#2196F3"
     COLOR_SECONDARY = "#757575"
-    COLOR_LIGHT_GRAY = "#f5f5f5"
-    COLOR_DARK_GRAY = "#333"
-    COLOR_WHITE = "#FFFFFF"
-    COLOR_DEFAULT_BORDER = "#cccccc"
 
-    # ===== 按钮样式 =====
+    # ===== 按钮样式（状态色驱动，不随主题变化） =====
     BUTTON_START = f"""
         QPushButton {{
             background-color: {COLOR_SUCCESS};
@@ -97,105 +99,7 @@ class AppStyles:
         }}
     """
 
-    # ===== 标签样式 =====
-    LABEL_STATUS = f"""
-        QLabel {{
-            font-size: 14pt;
-            color: {COLOR_DARK_GRAY};
-            padding: 15px;
-            border-radius: 5px;
-            border: 2px solid #ddd;
-            background-color: {COLOR_LIGHT_GRAY};
-        }}
-    """
-
-    LABEL_TITLE = f"""
-        QLabel {{
-            font-size: 13pt;
-            font-weight: bold;
-            color: {COLOR_DARK_GRAY};
-            padding: 5px;
-        }}
-    """
-
-    LABEL_VALUE = """
-        QLabel {
-            font-size: 12pt;
-            padding: 5px;
-            border: 1px solid #ddd;
-            background-color: white;
-            border-radius: 3px;
-        }
-    """
-
-    # ===== 输入框样式 =====
-    LINE_EDIT = """
-        QLineEdit {
-            padding: 8px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            font-size: 11pt;
-            background-color: white;
-        }
-        QLineEdit:focus {
-            border-color: #2196F3;
-        }
-        QLineEdit:disabled {
-            background-color: #f5f5f5;
-            color: #999;
-        }
-    """
-
-    SPIN_BOX = """
-        QSpinBox {
-            padding: 8px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            font-size: 11pt;
-            background-color: white;
-        }
-        QSpinBox:focus {
-            border-color: #2196F3;
-        }
-        QSpinBox:disabled {
-            background-color: #f5f5f5;
-            color: #999;
-        }
-    """
-
-    # ===== 组框样式 =====
-    GROUP_BOX = f"""
-        QGroupBox {{
-            font-size: 12pt;
-            font-weight: bold;
-            border: 2px solid {COLOR_PRIMARY};
-            border-radius: 5px;
-            margin-top: 10px;
-            padding-top: 10px;
-        }}
-        QGroupBox::title {{
-            subcontrol-origin: margin;
-            subcontrol-position: top left;
-            padding: 0 5px;
-            color: {COLOR_PRIMARY};
-        }}
-    """
-
-    # ===== 进度条样式 =====
-    PROGRESS_BAR = f"""
-        QProgressBar {{
-            border: 2px solid {COLOR_PRIMARY};
-            border-radius: 5px;
-            text-align: center;
-            font-size: 11pt;
-            font-weight: bold;
-        }}
-        QProgressBar::chunk {{
-            background-color: {COLOR_PRIMARY};
-        }}
-    """
-
-    # ===== 传感器测试样式 =====
+    # ===== 传感器测试样式（状态色驱动） =====
     BUTTON_SENSOR_TEST = f"""
         QPushButton {{
             background-color: {COLOR_INFO};
@@ -326,149 +230,309 @@ class AppStyles:
         }}
     """
 
-    # ===== 表格样式 =====
-    TABLE_WIDGET = """
-        QTableWidget {
-            border: 1px solid #ddd;
-            gridline-color: #ddd;
-            background-color: white;
-            font-size: 10pt;
-        }
-        QTableWidget::item {
-            padding: 5px;
-        }
-        QTableWidget::item:selected {
-            background-color: #2196F3;
-            color: white;
-        }
-        QHeaderView::section {
-            background-color: #f5f5f5;
-            padding: 8px;
-            border: 1px solid #ddd;
-            font-weight: bold;
-        }
-    """
+    # ═══════════════════════════════════════════
+    #  主题驱动的工厂方法
+    # ═══════════════════════════════════════════
 
-    # ===== 主窗口全局样式 =====
-    MAIN_WINDOW = """
-        QMainWindow {
-            background-color: #f0f0f0;
-        }
-        /* 侧边栏样式 - 参照 electerm sidebar.styl */
-        #sidebar {
-            background-color: #1f1f1f;
-            border: none;
-        }
-        #sidebarButton {
-            background-color: transparent;
-            border: none;
-            border-radius: 0px;
-            min-width: 36px;
-            max-width: 36px;
-            min-height: 36px;
-            max-height: 36px;
-            padding: 0px;
-        }
-        #sidebarButton:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        #sidebarButton:pressed {
-            background-color: rgba(255, 255, 255, 0.15);
-        }
-        /* 通用按钮样式 */
-        QPushButton {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            min-width: 80px;
-        }
-        QPushButton:hover {
-            background-color: #45a049;
-        }
-        QPushButton:disabled {
-            background-color: #cccccc;
-        }
-        QGroupBox {
-            font-weight: bold;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            margin-top: 10px;
-            padding-top: 10px;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 5px;
-        }
-        QComboBox, QSpinBox, QLineEdit {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-        /* 内容区 QStackedWidget */
-        #contentStack {
-            background-color: #ffffff;
-            border: none;
-        }
-        /* 标题栏内嵌标签页样式 - 具体样式在 TitleTabBar 组件中直接设置 */
-        /* 标题栏 "+" 添加按钮 */
-        #addTabButton {
-            background-color: transparent;
-            border: none;
-            border-radius: 0px;
-            min-width: 32px;
-            max-width: 32px;
-            min-height: 32px;
-            max-height: 32px;
-            padding: 0px;
-        }
-        #addTabButton:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        #addTabButton:pressed {
-            background-color: rgba(255, 255, 255, 0.15);
-        }
-        /* 自定义标题栏样式 */
-        #titleBar {
-            background-color: #2b2b2b;
-            border: none;
-        }
-        #titleBarButton {
-            background-color: transparent;
-            border: none;
-            border-radius: 0px;
-            min-width: 46px;
-            max-width: 46px;
-            min-height: 32px;
-            max-height: 32px;
-            padding: 0px;
-        }
-        #titleBarButton:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        #titleBarButton:pressed {
-            background-color: rgba(255, 255, 255, 0.15);
-        }
-        #titleBarCloseButton {
-            background-color: transparent;
-            border: none;
-            border-radius: 0px;
-            min-width: 46px;
-            max-width: 46px;
-            min-height: 32px;
-            max-height: 32px;
-            padding: 0px;
-        }
-        #titleBarCloseButton:hover {
-            background-color: #e81123;
-        }
-        #titleBarCloseButton:pressed {
-            background-color: #bf0f1d;
-        }
-    """
+    @staticmethod
+    def main_window(t: "ThemeData") -> str:
+        """生成主窗口全局样式表.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QMainWindow {{
+                background-color: {t.window_bg};
+            }}
+            /* 侧边栏 */
+            #sidebar {{
+                background-color: {t.sidebar_bg};
+                border: none;
+            }}
+            #sidebarButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 36px;
+                max-width: 36px;
+                min-height: 36px;
+                max-height: 36px;
+                padding: 0px;
+            }}
+            #sidebarButton:hover {{
+                background-color: {t.sidebar_hover_bg};
+            }}
+            #sidebarButton:pressed {{
+                background-color: {t.sidebar_hover_bg};
+            }}
+            /* 通用按钮 */
+            QPushButton {{
+                background-color: {t.color_success};
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 14px;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: #45a049;
+            }}
+            QPushButton:disabled {{
+                background-color: {t.button_disabled_bg};
+            }}
+            QGroupBox {{
+                font-weight: bold;
+                border: 2px solid {t.border};
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+                color: {t.text_primary};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            QComboBox, QSpinBox, QLineEdit {{
+                padding: 5px;
+                border: 1px solid {t.input_border};
+                border-radius: 3px;
+                background-color: {t.input_bg};
+                color: {t.text_primary};
+            }}
+            /* 内容区 */
+            #contentStack {{
+                background-color: {t.content_bg};
+                border: none;
+            }}
+            /* 标题栏 "+" 添加按钮 */
+            #addTabButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 32px;
+                max-width: 32px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }}
+            #addTabButton:hover {{
+                background-color: {t.win_btn_hover_bg};
+            }}
+            #addTabButton:pressed {{
+                background-color: {t.win_btn_hover_bg};
+            }}
+            /* 标题栏 */
+            #titleBar {{
+                background-color: {t.titlebar_bg};
+                border: none;
+            }}
+            #titleBarButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 46px;
+                max-width: 46px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }}
+            #titleBarButton:hover {{
+                background-color: {t.win_btn_hover_bg};
+            }}
+            #titleBarButton:pressed {{
+                background-color: {t.win_btn_hover_bg};
+            }}
+            #titleBarCloseButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 46px;
+                max-width: 46px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }}
+            #titleBarCloseButton:hover {{
+                background-color: {t.close_btn_hover_bg};
+            }}
+            #titleBarCloseButton:pressed {{
+                background-color: {t.close_btn_pressed_bg};
+            }}
+        """
+
+    @staticmethod
+    def menu_style(t: "ThemeData") -> str:
+        """生成菜单样式表.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QMenu {{
+                background-color: {t.menu_bg};
+                color: {t.menu_text};
+                border: 1px solid {t.menu_border};
+                padding: 4px 0;
+            }}
+            QMenu::item {{
+                padding: 6px 24px;
+            }}
+            QMenu::item:selected {{
+                background-color: {t.menu_hover_bg};
+                color: {t.text_primary};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: {t.menu_separator};
+                margin: 4px 8px;
+            }}
+            QMenu::item:disabled {{
+                color: {t.menu_disabled_text};
+                font-weight: bold;
+            }}
+        """
+
+    @staticmethod
+    def log_text_edit(t: "ThemeData") -> str:
+        """生成日志文本框样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QTextEdit {{
+                background-color: {t.log_bg};
+                color: {t.log_text};
+                border: 1px solid {t.log_border};
+            }}
+        """
+
+    @staticmethod
+    def label_status(t: "ThemeData") -> str:
+        """生成状态标签样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QLabel {{
+                font-size: 14pt;
+                color: {t.text_primary};
+                padding: 15px;
+                border-radius: 5px;
+                border: 2px solid {t.border};
+                background-color: {t.window_bg};
+            }}
+        """
+
+    @staticmethod
+    def label_title(t: "ThemeData") -> str:
+        """生成标题标签样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QLabel {{
+                font-size: 13pt;
+                font-weight: bold;
+                color: {t.text_primary};
+                padding: 5px;
+            }}
+        """
+
+    @staticmethod
+    def label_value(t: "ThemeData") -> str:
+        """生成值标签样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QLabel {{
+                font-size: 12pt;
+                padding: 5px;
+                border: 1px solid {t.input_border};
+                background-color: {t.input_bg};
+                color: {t.text_primary};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
+    def line_edit(t: "ThemeData") -> str:
+        """生成输入框样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QLineEdit {{
+                padding: 8px;
+                border: 2px solid {t.input_border};
+                border-radius: 4px;
+                font-size: 11pt;
+                background-color: {t.input_bg};
+                color: {t.text_primary};
+            }}
+            QLineEdit:focus {{
+                border-color: {t.input_focus_border};
+            }}
+            QLineEdit:disabled {{
+                background-color: {t.input_disabled_bg};
+                color: {t.input_disabled_text};
+            }}
+        """
+
+    @staticmethod
+    def table_widget(t: "ThemeData") -> str:
+        """生成表格样式.
+
+        :param t: 主题数据
+        :type t: ThemeData
+        :return: QSS 样式字符串
+        :rtype: str
+        """
+        return f"""
+            QTableWidget {{
+                border: 1px solid {t.border};
+                gridline-color: {t.border};
+                background-color: {t.content_bg};
+                color: {t.text_primary};
+                font-size: 10pt;
+            }}
+            QTableWidget::item {{
+                padding: 5px;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {t.color_primary};
+                color: white;
+            }}
+            QHeaderView::section {{
+                background-color: {t.window_bg};
+                color: {t.text_primary};
+                padding: 8px;
+                border: 1px solid {t.border};
+                font-weight: bold;
+            }}
+        """
 
     @staticmethod
     def get_status_style(bg_color: str, border_color: str = None) -> str:
@@ -481,7 +545,6 @@ class AppStyles:
         :return: 样式字符串
         :rtype: str
         """
-        logger.trace(f"")
         if border_color is None:
             border_color = bg_color
 
@@ -509,7 +572,6 @@ class AppStyles:
         :return: 样式字符串
         :rtype: str
         """
-        logger.trace(f"")
         if hover_color is None:
             hover_color = bg_color
         if pressed_color is None:

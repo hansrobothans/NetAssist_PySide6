@@ -42,3 +42,11 @@ class LogTab(QWidget):
         )
 
         layout.addWidget(self.log_widget)
+
+    def apply_theme(self, theme):
+        """应用主题到日志标签页.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self.log_widget.apply_theme(theme)

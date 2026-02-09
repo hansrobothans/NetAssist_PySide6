@@ -9,6 +9,8 @@
 - 双击最大化/还原（仅空白区域）
 """
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QApplication, QTabBar
 from PySide6.QtCore import Qt, QRectF, Signal
 from PySide6.QtGui import QPainter, QColor, QMouseEvent, QPalette
@@ -17,6 +19,9 @@ from PySide6.QtCore import QByteArray
 
 from resources.icons import ICONS
 
+if TYPE_CHECKING:
+    from models.theme_data import ThemeData
+
 
 class TitleBarButton(QPushButton):
     """标题栏窗口控制按钮."""
@@ -24,7 +29,9 @@ class TitleBarButton(QPushButton):
     def __init__(self, icon_name: str, tooltip: str = "", parent=None):
         super().__init__(parent)
         self._icon_name = icon_name
-        self._icon_color = QColor("#888888")
+        self._icon_color_normal = QColor("#888888")
+        self._icon_color_hover = QColor("#ffffff")
+        self._icon_color = self._icon_color_normal
         self._hover = False
 
         self.setToolTip(tooltip)
@@ -34,13 +41,13 @@ class TitleBarButton(QPushButton):
 
     def enterEvent(self, event):
         self._hover = True
-        self._icon_color = QColor("#ffffff")
+        self._icon_color = self._icon_color_hover
         self.update()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         self._hover = False
-        self._icon_color = QColor("#888888")
+        self._icon_color = self._icon_color_normal
         self.update()
         super().leaveEvent(event)
 
@@ -71,6 +78,17 @@ class TitleBarButton(QPushButton):
         self._icon_name = icon_name
         self.update()
 
+    def apply_theme(self, theme: "ThemeData"):
+        """应用主题颜色.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self._icon_color_normal = QColor(theme.win_btn_icon)
+        self._icon_color_hover = QColor(theme.win_btn_icon_hover)
+        self._icon_color = self._icon_color_hover if self._hover else self._icon_color_normal
+        self.update()
+
 
 class CloseButton(TitleBarButton):
     """关闭按钮 - 悬停时红色背景."""
@@ -81,13 +99,13 @@ class CloseButton(TitleBarButton):
 
     def enterEvent(self, event):
         self._hover = True
-        self._icon_color = QColor("#ffffff")
+        self._icon_color = self._icon_color_hover
         self.update()
         QPushButton.enterEvent(self, event)
 
     def leaveEvent(self, event):
         self._hover = False
-        self._icon_color = QColor("#888888")
+        self._icon_color = self._icon_color_normal
         self.update()
         QPushButton.leaveEvent(self, event)
 
@@ -97,15 +115,6 @@ class TitleTabBar(QTabBar):
 
     使用 paintEvent 自绘，避免 QTabBar::tab 样式表级联失效问题。
     """
-
-    # 浅色主题配色
-    _COLOR_BG = QColor("#f0f0f0")
-    _COLOR_TAB_ACTIVE = QColor("#ffffff")
-    _COLOR_TAB_HOVER = QColor("#e5e5e5")
-    _COLOR_TEXT = QColor("#666666")
-    _COLOR_TEXT_ACTIVE = QColor("#333333")
-    _COLOR_TEXT_HOVER = QColor("#444444")
-    _COLOR_ACCENT = QColor("#0078d4")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -118,13 +127,37 @@ class TitleTabBar(QTabBar):
         self.setMouseTracking(True)
         self._hover_index = -1
 
+        # 主题颜色（默认浅色）
+        self._color_bg = QColor("#f0f0f0")
+        self._color_tab_active = QColor("#ffffff")
+        self._color_tab_hover = QColor("#e5e5e5")
+        self._color_text = QColor("#666666")
+        self._color_text_active = QColor("#333333")
+        self._color_text_hover = QColor("#444444")
+        self._color_accent = QColor("#0078d4")
+
+    def apply_theme(self, theme: "ThemeData"):
+        """应用主题颜色.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self._color_bg = QColor(theme.tab_bg)
+        self._color_tab_active = QColor(theme.tab_active_bg)
+        self._color_tab_hover = QColor(theme.tab_hover_bg)
+        self._color_text = QColor(theme.tab_text)
+        self._color_text_active = QColor(theme.tab_active_text)
+        self._color_text_hover = QColor(theme.tab_hover_bg)  # hover 文字用稍亮色
+        self._color_accent = QColor(theme.tab_accent)
+        self.update()
+
     def paintEvent(self, event):
         """自绘标签页背景和文字."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 绘制整体背景
-        painter.fillRect(self.rect(), self._COLOR_BG)
+        painter.fillRect(self.rect(), self._color_bg)
 
         for i in range(self.count()):
             rect = self.tabRect(i)
@@ -133,15 +166,15 @@ class TitleTabBar(QTabBar):
 
             # 标签页背景
             if is_selected:
-                painter.fillRect(rect, self._COLOR_TAB_ACTIVE)
+                painter.fillRect(rect, self._color_tab_active)
                 # 选中标签顶部蓝色指示条
-                painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._COLOR_ACCENT)
-                painter.setPen(self._COLOR_TEXT_ACTIVE)
+                painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._color_accent)
+                painter.setPen(self._color_text_active)
             elif is_hovered:
-                painter.fillRect(rect, self._COLOR_TAB_HOVER)
-                painter.setPen(self._COLOR_TEXT_HOVER)
+                painter.fillRect(rect, self._color_tab_hover)
+                painter.setPen(self._color_text_hover)
             else:
-                painter.setPen(self._COLOR_TEXT)
+                painter.setPen(self._color_text)
 
             # 绘制文字（右侧留出关闭按钮空间）
             text_rect = rect.adjusted(12, 2, -24, 0)
@@ -248,6 +281,18 @@ class TitleBar(QWidget):
         self.btn_close = CloseButton()
         self.btn_close.clicked.connect(self._on_close)
         layout.addWidget(self.btn_close)
+
+    def apply_theme(self, theme: "ThemeData"):
+        """应用主题到标题栏及其所有子组件.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self.tab_bar.apply_theme(theme)
+        self._btn_add.apply_theme(theme)
+        self.btn_minimize.apply_theme(theme)
+        self.btn_maximize.apply_theme(theme)
+        self.btn_close.apply_theme(theme)
 
     def _get_window(self):
         """获取顶层窗口."""

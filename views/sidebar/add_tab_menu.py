@@ -1,9 +1,16 @@
 # views/sidebar/add_tab_menu.py
 """添加标签页菜单 - 点击添加按钮时弹出."""
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import Signal, QObject
 from loguru import logger
+
+from views.styles.app_styles import AppStyles
+
+if TYPE_CHECKING:
+    from models.theme_data import ThemeData
 
 
 class AddTabMenu(QObject):
@@ -33,6 +40,15 @@ class AddTabMenu(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._theme = None
+
+    def apply_theme(self, theme: "ThemeData"):
+        """保存当前主题，供下次弹出菜单时使用.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        self._theme = theme
 
     def show(self, pos):
         """在指定位置显示菜单.
@@ -40,34 +56,40 @@ class AddTabMenu(QObject):
         :param pos: 全局坐标位置
         """
         menu = QMenu()
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #2b2b2b;
-                color: #cccccc;
-                border: 1px solid #3c3c3c;
-                padding: 4px 0;
-            }
-            QMenu::item {
-                padding: 6px 24px;
-            }
-            QMenu::item:selected {
-                background-color: #3c3c3c;
-                color: #ffffff;
-            }
-            QMenu::separator {
-                height: 1px;
-                background: #3c3c3c;
-                margin: 4px 8px;
-            }
-            QMenu::item:disabled {
-                color: #888888;
-                font-weight: bold;
-            }
-        """)
+
+        if self._theme:
+            style = AppStyles.menu_style(self._theme)
+        else:
+            # 回退默认样式
+            style = """
+                QMenu {
+                    background-color: #2b2b2b;
+                    color: #cccccc;
+                    border: 1px solid #3c3c3c;
+                    padding: 4px 0;
+                }
+                QMenu::item {
+                    padding: 6px 24px;
+                }
+                QMenu::item:selected {
+                    background-color: #3c3c3c;
+                    color: #ffffff;
+                }
+                QMenu::separator {
+                    height: 1px;
+                    background: #3c3c3c;
+                    margin: 4px 8px;
+                }
+                QMenu::item:disabled {
+                    color: #888888;
+                    font-weight: bold;
+                }
+            """
+        menu.setStyleSheet(style)
 
         # 网络调试助手子菜单
         net_menu = menu.addMenu("网络调试助手")
-        net_menu.setStyleSheet(menu.styleSheet())
+        net_menu.setStyleSheet(style)
 
         for tab_type in ("tcp_server", "tcp_client", "udp_server", "udp_client"):
             action = net_menu.addAction(self.TAB_TYPES[tab_type])

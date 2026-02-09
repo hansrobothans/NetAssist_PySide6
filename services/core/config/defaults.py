@@ -7,6 +7,11 @@
 #: 默认程序配置字典
 DEFAULT_CONFIG = {
 
+    # 外观配置
+    "appearance": {
+        # 主题: "dark" / "light"
+        "theme": "dark"
+    },
 
     # 输出路径配置
     "output": {

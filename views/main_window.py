@@ -23,6 +23,8 @@ from .sidebar import Sidebar
 from .sidebar.add_tab_menu import AddTabMenu
 from .styles.app_styles import AppStyles
 from .widgets.title_bar import TitleBar
+from viewmodels.theme_viewmodel import ThemeViewModel
+from models.theme_data import ThemeData
 from version import APP_TITLE
 
 if TYPE_CHECKING:
@@ -37,6 +39,7 @@ class MainWindow(QMainWindow):
         - 右侧多标签页界面
         - 管理各个功能模块
         - 处理窗口关闭事件
+        - 主题切换
     """
 
     def __init__(self, container: "ServiceContainer"):
@@ -51,14 +54,20 @@ class MainWindow(QMainWindow):
         # 保存服务容器
         self._container = container
 
+        # 创建 ThemeViewModel
+        self._theme_vm = ThemeViewModel(
+            theme_service=container.theme,
+            parent=self
+        )
+
         # 初始化UI
         self.init_ui()
 
-        # 应用样式
-        self.apply_styles()
-
         # 连接信号
         self._connect_signals()
+
+        # 应用初始主题（必须在 UI 和信号都就绪后）
+        self._apply_theme(self._theme_vm.current_theme)
 
         logger.info("主窗口初始化完成")
 
@@ -120,6 +129,7 @@ class MainWindow(QMainWindow):
         self.sidebar.settings_clicked.connect(self._on_settings_clicked)
         self.sidebar.log_clicked.connect(self._on_log_clicked)
         self.sidebar.about_clicked.connect(self._on_about_clicked)
+        self.sidebar.theme_clicked.connect(self._on_theme_clicked)
 
         # 添加标签页菜单
         self._add_tab_menu = AddTabMenu(self)
@@ -127,6 +137,40 @@ class MainWindow(QMainWindow):
 
         # 标题栏 "+" 按钮 → 弹出添加菜单
         self.title_bar.add_tab_clicked.connect(self._on_add_tab_btn_clicked)
+
+        # 主题变更信号 → 全局应用
+        self._theme_vm.theme_changed.connect(self._apply_theme)
+
+    # ===== 主题 =====
+
+    def _on_theme_clicked(self):
+        """主题切换按钮点击处理."""
+        logger.debug("主题切换按钮点击")
+        self._theme_vm.toggle_theme()
+
+    def _apply_theme(self, theme: ThemeData):
+        """应用主题到整个窗口.
+
+        :param theme: 主题数据
+        :type theme: ThemeData
+        """
+        logger.debug(f"应用主题: {theme.name}")
+
+        # 1. 全局 QSS
+        self.setStyleSheet(AppStyles.main_window(theme))
+
+        # 2. 自绘组件
+        self.title_bar.apply_theme(theme)
+        self.sidebar.apply_theme(theme)
+        self._add_tab_menu.apply_theme(theme)
+
+        # 3. 所有已打开的标签页
+        for i in range(self.tabs.count()):
+            widget = self.tabs.widget(i)
+            if hasattr(widget, 'apply_theme'):
+                widget.apply_theme(theme)
+
+    # ===== 侧边栏事件 =====
 
     def _on_menu_clicked(self):
         """菜单按钮点击处理."""
@@ -155,6 +199,8 @@ class MainWindow(QMainWindow):
         """
         tab_name = AddTabMenu.TAB_TYPES.get(tab_type, tab_type)
         tab = PlaceholderTab(tab_name)
+        # 对新标签页应用当前主题
+        tab.apply_theme(self._theme_vm.current_theme)
         index = self.tabs.addWidget(tab)
         self.title_bar.tab_bar.addTab(tab_name)
         self.title_bar.tab_bar.setCurrentIndex(index)
@@ -174,6 +220,8 @@ class MainWindow(QMainWindow):
         """日志按钮点击处理 - 创建新的日志标签页."""
         logger.debug("日志按钮点击")
         log_tab = LogTab()
+        # 对新标签页应用当前主题
+        log_tab.apply_theme(self._theme_vm.current_theme)
         index = self.tabs.addWidget(log_tab)
         self.title_bar.tab_bar.addTab("日志")
         self.title_bar.tab_bar.setCurrentIndex(index)
@@ -207,14 +255,6 @@ class MainWindow(QMainWindow):
             "MVVM架构 + QThread\n"
             "使用Qt信号槽实现数据绑定\n"
         )
-
-    def apply_styles(self):
-        """应用样式 - 参照 electerm 风格.
-
-        设置全局样式表，侧边栏使用 electerm 的深色主题。
-        """
-        logger.trace(f"")
-        self.setStyleSheet(AppStyles.MAIN_WINDOW)
 
     # ===== 无边框窗口：Windows 原生事件处理 =====
 
@@ -345,7 +385,7 @@ class MainWindow(QMainWindow):
         logger.trace(f"")
         logger.info("正在关闭主窗口...")
 
-        # 清理各标签页资源
-
+        # 清理 ViewModel
+        self._theme_vm.cleanup()
 
         event.accept()
