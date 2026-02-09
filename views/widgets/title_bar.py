@@ -12,7 +12,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QApplication, QTabBar
-from PySide6.QtCore import Qt, QRectF, Signal
+from PySide6.QtCore import Qt, QRectF, Signal, QSize
 from PySide6.QtGui import QPainter, QColor, QMouseEvent, QPalette
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QByteArray
@@ -150,6 +150,26 @@ class TitleTabBar(QTabBar):
         self._color_text_hover = QColor(theme.tab_hover_bg)  # hover 文字用稍亮色
         self._color_accent = QColor(theme.tab_accent)
         self.update()
+
+    def _tabs_total_width(self):
+        """计算所有标签页的实际总宽度."""
+        n = self.count()
+        if n == 0:
+            return 0
+        last = self.tabRect(n - 1)
+        return last.x() + last.width()
+
+    def sizeHint(self):
+        """根据实际标签宽度返回精确尺寸，消除多余间距."""
+        hint = super().sizeHint()
+        hint.setWidth(self._tabs_total_width())
+        return hint
+
+    def minimumSizeHint(self):
+        """根据实际标签宽度返回精确尺寸，消除多余间距."""
+        hint = super().minimumSizeHint()
+        hint.setWidth(self._tabs_total_width())
+        return hint
 
     def paintEvent(self, event):
         """自绘标签页背景和文字."""
