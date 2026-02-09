@@ -93,10 +93,6 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(content_widget)
 
-        # 日志标签页
-        self.log_tab = LogTab()
-        self.tabs.addTab(self.log_tab, "日志")
-
     def _connect_signals(self):
         """连接侧边栏信号."""
         self.sidebar.menu_clicked.connect(self._on_menu_clicked)
@@ -145,11 +141,11 @@ class MainWindow(QMainWindow):
         # TODO: 显示设置面板
 
     def _on_log_clicked(self):
-        """日志按钮点击处理 - 切换到日志标签页."""
+        """日志按钮点击处理 - 创建新的日志标签页."""
         logger.debug("日志按钮点击")
-        index = self.tabs.indexOf(self.log_tab)
-        if index >= 0:
-            self.tabs.setCurrentIndex(index)
+        log_tab = LogTab()
+        index = self.tabs.addTab(log_tab, "日志")
+        self.tabs.setCurrentIndex(index)
 
     def _on_about_clicked(self):
         """关于按钮点击处理."""
@@ -161,9 +157,6 @@ class MainWindow(QMainWindow):
 
         :param index: 标签页索引
         """
-        # 日志标签页不允许关闭
-        if self.tabs.widget(index) == self.log_tab:
-            return
         self.tabs.removeTab(index)
 
     def show_about(self):
