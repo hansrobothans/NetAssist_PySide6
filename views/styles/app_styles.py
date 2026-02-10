@@ -326,6 +326,23 @@ class AppStyles:
             #addTabButton:pressed {{
                 background-color: {t.win_btn_hover_bg};
             }}
+            /* 标签页导航按钮（滚动左/右、下拉列表） */
+            #tabNavButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+                min-width: 28px;
+                max-width: 28px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px;
+            }}
+            #tabNavButton:hover {{
+                background-color: {t.win_btn_hover_bg};
+            }}
+            #tabNavButton:pressed {{
+                background-color: {t.win_btn_hover_bg};
+            }}
             /* 标题栏 */
             #titleBar {{
                 background-color: {t.titlebar_bg};

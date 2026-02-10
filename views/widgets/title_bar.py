@@ -116,6 +116,8 @@ class TitleTabBar(QTabBar):
     使用 paintEvent 自绘，避免 QTabBar::tab 样式表级联失效问题。
     """
 
+    tab_count_changed = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("titleTabBar")
@@ -125,6 +127,7 @@ class TitleTabBar(QTabBar):
         self.setDrawBase(False)
         self.setElideMode(Qt.ElideRight)
         self.setMouseTracking(True)
+        self.setUsesScrollButtons(False)
         self._hover_index = -1
 
         # 主题颜色（默认浅色）
@@ -152,12 +155,11 @@ class TitleTabBar(QTabBar):
         self.update()
 
     def _tabs_total_width(self):
-        """计算所有标签页的实际总宽度."""
-        n = self.count()
-        if n == 0:
-            return 0
-        last = self.tabRect(n - 1)
-        return last.x() + last.width()
+        """计算所有标签页的自然总宽度（不受控件压缩影响）."""
+        total = 0
+        for i in range(self.count()):
+            total += self.tabSizeHint(i).width()
+        return total
 
     def sizeHint(self):
         """根据实际标签宽度返回精确尺寸，消除多余间距."""
@@ -166,10 +168,20 @@ class TitleTabBar(QTabBar):
         return hint
 
     def minimumSizeHint(self):
-        """根据实际标签宽度返回精确尺寸，消除多余间距."""
+        """返回最小尺寸提示 - 允许容器压缩标签页栏."""
         hint = super().minimumSizeHint()
-        hint.setWidth(self._tabs_total_width())
+        hint.setWidth(0)
         return hint
+
+    def tabInserted(self, index):
+        """标签页插入后通知容器重新计算."""
+        super().tabInserted(index)
+        self.tab_count_changed.emit()
+
+    def tabRemoved(self, index):
+        """标签页移除后通知容器重新计算."""
+        super().tabRemoved(index)
+        self.tab_count_changed.emit()
 
     def paintEvent(self, event):
         """自绘标签页背景和文字."""
@@ -248,6 +260,112 @@ class AddTabButton(TitleBarButton):
         self.setFixedSize(32, 32)
 
 
+class TabNavButton(TitleBarButton):
+    """标签页导航按钮（滚动左/右、下拉列表）."""
+
+    def __init__(self, icon_name: str, tooltip: str = "", parent=None):
+        super().__init__(icon_name, tooltip, parent)
+        self.setObjectName("tabNavButton")
+        self.setFixedSize(28, 32)
+
+
+class TabBarScrollContainer(QWidget):
+    """标签页栏滚动容器.
+
+    将 TitleTabBar 放入固定高度的容器中，
+    当标签页总宽度超过容器宽度时，通过偏移量实现水平滚动。
+    """
+
+    overflow_changed = Signal(bool)
+
+    def __init__(self, tab_bar: TitleTabBar, parent=None):
+        super().__init__(parent)
+        self._tab_bar = tab_bar
+        self._scroll_offset = 0
+        self._tab_bar.setParent(self)
+        self.setFixedHeight(32)
+
+        # 允许布局压缩容器（标签溢出时）
+        from PySide6.QtWidgets import QSizePolicy
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+        self._tab_bar.tab_count_changed.connect(self._on_tabs_changed)
+
+    def sizeHint(self):
+        """返回标签页自然总宽度作为首选宽度."""
+        return QSize(self._tab_bar._tabs_total_width(), 32)
+
+    def minimumSizeHint(self):
+        """允许容器被压缩到任意宽度."""
+        return QSize(0, 32)
+
+    def is_overflowing(self):
+        """标签页总宽度是否超过容器宽度."""
+        return self._tab_bar._tabs_total_width() > self.width()
+
+    def scroll_left(self):
+        """向左滚动（显示更左边的标签页）."""
+        self._scroll_offset = max(0, self._scroll_offset - 120)
+        self._update_tab_bar_position()
+
+    def scroll_right(self):
+        """向右滚动（显示更右边的标签页）."""
+        max_offset = max(0, self._tab_bar._tabs_total_width() - self.width())
+        self._scroll_offset = min(max_offset, self._scroll_offset + 120)
+        self._update_tab_bar_position()
+
+    def ensure_current_visible(self):
+        """确保当前选中的标签页可见."""
+        index = self._tab_bar.currentIndex()
+        if index < 0:
+            return
+        tab_rect = self._tab_bar.tabRect(index)
+        tab_left = tab_rect.x()
+        tab_right = tab_left + tab_rect.width()
+
+        if tab_left < self._scroll_offset:
+            self._scroll_offset = tab_left
+        elif tab_right > self._scroll_offset + self.width():
+            self._scroll_offset = tab_right - self.width()
+
+        self._update_tab_bar_position()
+
+    def _update_tab_bar_position(self):
+        """根据滚动偏移量更新标签页栏位置."""
+        self._tab_bar.move(-self._scroll_offset, 0)
+        self._check_overflow()
+
+    def _check_overflow(self):
+        """检查溢出状态并发射信号."""
+        self.overflow_changed.emit(self.is_overflowing())
+
+    def _on_tabs_changed(self):
+        """标签页数量变化时，重新计算布局."""
+        total_w = self._tab_bar._tabs_total_width()
+        bar_w = max(self.width(), total_w)
+        self._tab_bar.setFixedSize(bar_w, self.height())
+
+        # 修正滚动偏移量（防止越界）
+        max_offset = max(0, total_w - self.width())
+        self._scroll_offset = min(self._scroll_offset, max_offset)
+        self._update_tab_bar_position()
+
+        # 通知父布局重新计算（容器首选宽度已变化）
+        self.updateGeometry()
+
+    def resizeEvent(self, event):
+        """容器大小变化时，重新布局标签页栏并检查溢出."""
+        super().resizeEvent(event)
+        total_w = self._tab_bar._tabs_total_width()
+        bar_w = max(self.width(), total_w)
+        self._tab_bar.setFixedSize(bar_w, self.height())
+
+        # 修正滚动偏移量
+        max_offset = max(0, total_w - self.width())
+        self._scroll_offset = min(self._scroll_offset, max_offset)
+        self._update_tab_bar_position()
+
+
 class TitleBar(QWidget):
     """自定义窗口标题栏（WPS/Chrome 风格）.
 
@@ -261,6 +379,7 @@ class TitleBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._window = None
+        self._current_theme = None
 
         self.setFixedHeight(32)
         self.setObjectName("titleBar")
@@ -275,9 +394,10 @@ class TitleBar(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 标签页栏
+        # 标签页栏（包裹在滚动容器中）
         self.tab_bar = TitleTabBar(self)
-        layout.addWidget(self.tab_bar)
+        self._tab_container = TabBarScrollContainer(self.tab_bar, self)
+        layout.addWidget(self._tab_container)
 
         # "+" 添加按钮
         self._btn_add = AddTabButton(self)
@@ -286,6 +406,19 @@ class TitleBar(QWidget):
 
         # 弹性空间
         layout.addStretch()
+
+        # ── 标签页导航按钮 ──
+        self._btn_scroll_left = TabNavButton("chevron-left", "向左滚动")
+        self._btn_scroll_left.clicked.connect(self._tab_container.scroll_left)
+        layout.addWidget(self._btn_scroll_left)
+
+        self._btn_scroll_right = TabNavButton("chevron-right", "向右滚动")
+        self._btn_scroll_right.clicked.connect(self._tab_container.scroll_right)
+        layout.addWidget(self._btn_scroll_right)
+
+        self._btn_tab_list = TabNavButton("chevron-down", "标签页列表")
+        self._btn_tab_list.clicked.connect(self._show_tab_list)
+        layout.addWidget(self._btn_tab_list)
 
         # 最小化按钮
         self.btn_minimize = TitleBarButton("window-minimize", "最小化")
@@ -302,14 +435,21 @@ class TitleBar(QWidget):
         self.btn_close.clicked.connect(self._on_close)
         layout.addWidget(self.btn_close)
 
+        # 标签页变化时确保当前标签可见
+        self.tab_bar.currentChanged.connect(self._on_tab_changed)
+
     def apply_theme(self, theme: "ThemeData"):
         """应用主题到标题栏及其所有子组件.
 
         :param theme: 主题数据
         :type theme: ThemeData
         """
+        self._current_theme = theme
         self.tab_bar.apply_theme(theme)
         self._btn_add.apply_theme(theme)
+        self._btn_scroll_left.apply_theme(theme)
+        self._btn_scroll_right.apply_theme(theme)
+        self._btn_tab_list.apply_theme(theme)
         self.btn_minimize.apply_theme(theme)
         self.btn_maximize.apply_theme(theme)
         self.btn_close.apply_theme(theme)
@@ -340,10 +480,46 @@ class TitleBar(QWidget):
             return True
         # tab_bar 内部空白区域也算标题栏空白
         if child is self.tab_bar:
-            tab_pos = self.tab_bar.mapFromParent(pos)
+            tab_pos = self.tab_bar.mapFrom(self, pos)
+            if self.tab_bar.tabAt(tab_pos) < 0:
+                return True
+        # 滚动容器的空白区域也算标题栏空白
+        if child is self._tab_container:
+            tab_pos = self.tab_bar.mapFrom(self, pos)
             if self.tab_bar.tabAt(tab_pos) < 0:
                 return True
         return False
+
+    def _on_tab_changed(self, index: int):
+        """标签页切换时，确保当前标签页可见."""
+        if index >= 0:
+            self._tab_container.ensure_current_visible()
+
+    def _show_tab_list(self):
+        """显示所有标签页的下拉列表."""
+        from PySide6.QtWidgets import QMenu
+        from views.styles.app_styles import AppStyles
+
+        menu = QMenu(self)
+
+        if self._current_theme:
+            menu.setStyleSheet(AppStyles.menu_style(self._current_theme))
+
+        current_index = self.tab_bar.currentIndex()
+
+        for i in range(self.tab_bar.count()):
+            tab_text = self.tab_bar.tabText(i)
+            display_text = f"● {tab_text}" if i == current_index else f"   {tab_text}"
+            action = menu.addAction(display_text)
+            action.setData(i)
+
+        pos = self._btn_tab_list.mapToGlobal(
+            self._btn_tab_list.rect().bottomLeft()
+        )
+
+        selected = menu.exec(pos)
+        if selected is not None and selected.data() is not None:
+            self.tab_bar.setCurrentIndex(selected.data())
 
     # --- 拖拽移动（Qt 6 原生 API，支持 Aero Snap） ---
 
