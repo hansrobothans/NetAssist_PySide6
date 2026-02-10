@@ -138,6 +138,8 @@ class TitleTabBar(QTabBar):
         self._color_text_active = QColor("#333333")
         self._color_text_hover = QColor("#444444")
         self._color_accent = QColor("#0078d4")
+        self._color_badge_bg = QColor("#0078d4")
+        self._color_badge_text = QColor("#ffffff")
 
     def apply_theme(self, theme: "ThemeData"):
         """应用主题颜色.
@@ -152,7 +154,16 @@ class TitleTabBar(QTabBar):
         self._color_text_active = QColor(theme.tab_active_text)
         self._color_text_hover = QColor(theme.tab_active_text)  # hover 文字用活动标签文字色
         self._color_accent = QColor(theme.tab_accent)
+        self._color_badge_bg = QColor(theme.tab_accent)
+        self._color_badge_text = QColor("#ffffff")
         self.update()
+
+    def tabSizeHint(self, index):
+        """增加标签宽度以容纳编号徽章和类型图标."""
+        hint = super().tabSizeHint(index)
+        # 额外宽度: 徽章(~18) + 间距(4) + 图标(14) + 间距(4) - 原左边距调整(~2)
+        hint.setWidth(hint.width() + 38)
+        return hint
 
     def _tabs_total_width(self):
         """计算所有标签页的自然总宽度（不受控件压缩影响）."""
@@ -184,7 +195,7 @@ class TitleTabBar(QTabBar):
         self.tab_count_changed.emit()
 
     def paintEvent(self, event):
-        """自绘标签页背景和文字."""
+        """自绘标签页背景、编号徽章、类型图标和文字."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -196,20 +207,75 @@ class TitleTabBar(QTabBar):
             is_selected = (i == self.currentIndex())
             is_hovered = (i == self._hover_index and not is_selected)
 
-            # 标签页背景
+            # ── 标签页背景 ──
             if is_selected:
                 painter.fillRect(rect, self._color_tab_active)
                 # 选中标签顶部蓝色指示条
                 painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._color_accent)
-                painter.setPen(self._color_text_active)
+                text_color = self._color_text_active
             elif is_hovered:
                 painter.fillRect(rect, self._color_tab_hover)
-                painter.setPen(self._color_text_hover)
+                text_color = self._color_text_hover
             else:
-                painter.setPen(self._color_text)
+                text_color = self._color_text
 
-            # 绘制文字（右侧留出关闭按钮空间）
-            text_rect = rect.adjusted(12, 2, -24, 0)
+            # ── 获取标签元数据 ──
+            data = self.tabData(i) or {}
+            number = data.get("number", i + 1)
+            icon_name = data.get("icon", "")
+
+            cursor_x = rect.x() + 10
+
+            # ── 编号徽章（electerm 风格药丸形） ──
+            badge_text = str(number)
+            badge_font = painter.font()
+            badge_font.setPixelSize(10)
+            badge_font.setBold(is_selected)
+            painter.setFont(badge_font)
+            badge_text_width = painter.fontMetrics().horizontalAdvance(badge_text)
+            badge_w = max(badge_text_width + 10, 18)
+            badge_h = 14
+            badge_y = rect.y() + (rect.height() - badge_h) // 2
+
+            badge_rect = QRectF(cursor_x, badge_y, badge_w, badge_h)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self._color_badge_bg)
+            # 左侧圆角大，右侧圆角小（药丸形）
+            painter.drawRoundedRect(badge_rect, 7, 7)
+            # 右侧覆盖为小圆角
+            right_rect = QRectF(cursor_x + badge_w / 2, badge_y, badge_w / 2, badge_h)
+            painter.drawRoundedRect(right_rect, 2, 2)
+
+            # 徽章数字
+            painter.setPen(self._color_badge_text)
+            painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
+
+            cursor_x += badge_w + 4
+
+            # ── 类型图标 ──
+            if icon_name and icon_name in ICONS:
+                icon_size = 14
+                icon_y = rect.y() + (rect.height() - icon_size) // 2
+
+                svg_str = ICONS[icon_name]
+                svg_str = svg_str.replace(
+                    'fill="currentColor"', f'fill="{text_color.name()}"'
+                )
+                svg_data = QByteArray(svg_str.encode('utf-8'))
+                renderer = QSvgRenderer(svg_data)
+                renderer.render(painter, QRectF(cursor_x, icon_y, icon_size, icon_size))
+
+                cursor_x += icon_size + 4
+
+            # ── 标签文字 ──
+            text_font = painter.font()
+            text_font.setPixelSize(12)
+            text_font.setBold(False)
+            painter.setFont(text_font)
+            painter.setPen(text_color)
+
+            text_rect = rect.adjusted(0, 2, -24, 0)
+            text_rect.setLeft(cursor_x)
             elided = painter.fontMetrics().elidedText(
                 self.tabText(i), Qt.TextElideMode.ElideRight, text_rect.width()
             )
@@ -509,7 +575,10 @@ class TitleBar(QWidget):
 
         for i in range(self.tab_bar.count()):
             tab_text = self.tab_bar.tabText(i)
-            display_text = f"● {tab_text}" if i == current_index else f"   {tab_text}"
+            data = self.tab_bar.tabData(i) or {}
+            number = data.get("number", i + 1)
+            prefix = f"● {number}. " if i == current_index else f"   {number}. "
+            display_text = f"{prefix}{tab_text}"
             action = menu.addAction(display_text)
             action.setData(i)
 

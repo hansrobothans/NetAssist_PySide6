@@ -38,6 +38,19 @@ class AddTabMenu(QObject):
         "gpio": "GPIO助手",
     }
 
+    # 标签页类型 → 图标名称映射
+    TAB_ICONS = {
+        "tcp_server": "cloud-server",
+        "tcp_client": "send",
+        "udp_server": "cloud-server",
+        "udp_client": "send",
+        "serial": "api",
+        "i2c": "chip",
+        "spi": "swap",
+        "gpio": "toggle",
+        "log": "file-text",
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._theme = None
