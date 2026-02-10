@@ -115,13 +115,13 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 
 ### 标题栏组件
 
-- **TitleTabBar**: 自绘标签页（paintEvent），支持关闭、拖拽排序
+- **TitleTabBar**: 自绘标签页（paintEvent），支持关闭、拖拽排序、编号徽章、类型图标
 - **TabBarScrollContainer**: 包裹标签栏，标签溢出时支持滚动
 - **AddTabButton (+)**: 紧贴标签栏右侧，弹出添加菜单
 - **TabNavButton (<, >, V)**: 标签页导航按钮
   - `<` 向左滚动标签栏
   - `>` 向右滚动标签栏
-  - `V` 下拉列表显示所有标签，当前标签有 ● 标记
+  - `V` 下拉列表显示所有标签，带全局序号，当前标签有 ● 标记
 - **窗口控制按钮**: 最小化、最大化/还原、关闭
 - **拖拽移动**: 空白区域拖拽使用 QWindow.startSystemMove()，支持 Aero Snap
 - **双击最大化**: 空白区域双击切换最大化/还原
@@ -149,7 +149,29 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 
 所有图标使用 `fill="currentColor"`，运行时替换为主题颜色。
 
-可用图标: menu, plus-circle, book, setting, file-text, info-circle, global, usb, api, console, cloud-server, send, plus, window-minimize, window-maximize, window-restore, window-close, chevron-left, chevron-right, chevron-down, bulb
+可用图标: menu, plus-circle, book, setting, file-text, info-circle, global, usb, api, console, cloud-server, send, plus, window-minimize, window-maximize, window-restore, window-close, chevron-left, chevron-right, chevron-down, bulb, chip, swap, toggle
+
+### 标签页图标映射
+
+每个标签页左侧显示：**编号徽章**（electerm 风格药丸形蓝色背景 + 白色数字）+ **类型图标** + **标签文字**。
+
+编号为全局自增编号（1, 2, 3...），创建时分配，删除标签后编号不变，只增不减。
+
+| 标签类型 | 图标名 | 图标含义 |
+|---------|--------|---------|
+| tcp_server | cloud-server | 云服务器 |
+| tcp_client | send | 发送 |
+| udp_server | cloud-server | 云服务器 |
+| udp_client | send | 发送 |
+| serial | api | 接口链路 |
+| i2c | chip | 总线拓扑（节点连线） |
+| spi | swap | 方波时钟信号 |
+| gpio | toggle | 开关控制 |
+| log | file-text | 文件日志 |
+
+图标映射定义在 `AddTabMenu.TAB_ICONS`（`views/sidebar/add_tab_menu.py`）。
+
+标签元数据通过 `QTabBar.setTabData()` 存储 `{"type", "icon", "number"}`，编号在创建时由 `MainWindow._next_tab_number` 自增计数器分配，只增不减。
 
 ## 配置说明
 
@@ -182,8 +204,9 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 
 1. 在 `views/tabs/` 下创建标签页类
 2. 实现 `apply_theme(theme: ThemeData)` 方法
-3. 在 `AddTabMenu.TAB_TYPES` 中注册
-4. MainWindow._apply_theme() 会自动遍历调用
+3. 在 `AddTabMenu.TAB_TYPES` 中注册类型名称
+4. 在 `AddTabMenu.TAB_ICONS` 中注册类型图标
+5. MainWindow._apply_theme() 会自动遍历调用
 
 ### 新组件支持主题
 
@@ -215,4 +238,5 @@ python main.py
 - ✅ 侧边栏 + 多标签页布局
 - ✅ 主题系统（dark/light 切换）
 - ✅ 标签页导航（滚动 + 下拉列表）
+- ✅ 标签页图标 + 编号徽章（electerm 风格）
 - ⏳ 调试助手功能 (开发中)

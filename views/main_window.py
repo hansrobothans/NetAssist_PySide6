@@ -54,6 +54,9 @@ class MainWindow(QMainWindow):
         # 保存服务容器
         self._container = container
 
+        # 标签页编号计数器（只增不减，创建时分配）
+        self._next_tab_number = 1
+
         # 创建 ThemeViewModel
         self._theme_vm = ThemeViewModel(
             theme_service=container.theme,
@@ -204,8 +207,9 @@ class MainWindow(QMainWindow):
         index = self.tabs.addWidget(tab)
         self.title_bar.tab_bar.addTab(tab_name)
         icon_name = AddTabMenu.TAB_ICONS.get(tab_type, "file-text")
-        self.title_bar.tab_bar.setTabData(index, {"type": tab_type, "icon": icon_name})
-        self._renumber_tabs()
+        number = self._next_tab_number
+        self._next_tab_number += 1
+        self.title_bar.tab_bar.setTabData(index, {"type": tab_type, "icon": icon_name, "number": number})
         self.title_bar.tab_bar.setCurrentIndex(index)
         logger.info(f"已添加标签页: {tab_name}")
 
@@ -227,8 +231,8 @@ class MainWindow(QMainWindow):
         log_tab.apply_theme(self._theme_vm.current_theme)
         index = self.tabs.addWidget(log_tab)
         self.title_bar.tab_bar.addTab("日志")
-        self.title_bar.tab_bar.setTabData(index, {"type": "log", "icon": "file-text"})
-        self._renumber_tabs()
+        self.title_bar.tab_bar.setTabData(index, {"type": "log", "icon": "file-text", "number": self._next_tab_number})
+        self._next_tab_number += 1
         self.title_bar.tab_bar.setCurrentIndex(index)
 
     def _on_about_clicked(self):
@@ -246,16 +250,6 @@ class MainWindow(QMainWindow):
             self.tabs.removeWidget(widget)
             widget.deleteLater()
         self.title_bar.tab_bar.removeTab(index)
-        self._renumber_tabs()
-
-    def _renumber_tabs(self):
-        """全局顺序重新编号所有标签页."""
-        tab_bar = self.title_bar.tab_bar
-        for i in range(tab_bar.count()):
-            data = tab_bar.tabData(i) or {}
-            data["number"] = i + 1
-            tab_bar.setTabData(i, data)
-        tab_bar.update()
 
     def show_about(self):
         """显示关于对话框.
