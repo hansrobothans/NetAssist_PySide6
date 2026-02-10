@@ -150,7 +150,7 @@ class TitleTabBar(QTabBar):
         self._color_tab_hover = QColor(theme.tab_hover_bg)
         self._color_text = QColor(theme.tab_text)
         self._color_text_active = QColor(theme.tab_active_text)
-        self._color_text_hover = QColor(theme.tab_hover_bg)  # hover 文字用稍亮色
+        self._color_text_hover = QColor(theme.tab_active_text)  # hover 文字用活动标签文字色
         self._color_accent = QColor(theme.tab_accent)
         self.update()
 
