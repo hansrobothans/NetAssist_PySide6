@@ -118,6 +118,7 @@ class MainWindow(QMainWindow):
         # 连接标题栏 tab_bar 信号
         self.title_bar.tab_bar.currentChanged.connect(self.tabs.setCurrentIndex)
         self.title_bar.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
+        self.title_bar.tab_bar.tabMoved.connect(self._on_tab_moved)
 
         main_layout.addWidget(content_widget)
 
@@ -250,6 +251,18 @@ class MainWindow(QMainWindow):
             self.tabs.removeWidget(widget)
             widget.deleteLater()
         self.title_bar.tab_bar.removeTab(index)
+
+    def _on_tab_moved(self, from_index: int, to_index: int):
+        """标签页拖拽排序后，同步 QStackedWidget 中的 widget 顺序.
+
+        :param from_index: 原索引
+        :param to_index: 目标索引
+        """
+        widget = self.tabs.widget(from_index)
+        if widget:
+            self.tabs.removeWidget(widget)
+            self.tabs.insertWidget(to_index, widget)
+            self.tabs.setCurrentIndex(self.title_bar.tab_bar.currentIndex())
 
     def show_about(self):
         """显示关于对话框.

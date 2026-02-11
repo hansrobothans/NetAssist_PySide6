@@ -87,7 +87,7 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 |------|------|------|
 | `MainWindow` | views/main_window.py | 主窗口，无边框，标签页管理，主题分发 |
 | `TitleBar` | views/widgets/title_bar.py | 自定义标题栏，内嵌标签页 + 导航按钮 + 窗口控制 |
-| `TitleTabBar` | views/widgets/title_bar.py | 自绘标签页栏（paintEvent），支持拖拽排序 |
+| `TitleTabBar` | views/widgets/title_bar.py | 自绘标签页栏（paintEvent），自定义拖拽排序、自绘关闭按钮 |
 | `TabBarScrollContainer` | views/widgets/title_bar.py | 标签页滚动容器，支持溢出滚动 |
 | `Sidebar` | views/sidebar/sidebar.py | 左侧工具栏，功能按钮入口 |
 | `ThemeData` | models/theme_data.py | 主题颜色令牌（frozen dataclass） |
@@ -115,7 +115,7 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 
 ### 标题栏组件
 
-- **TitleTabBar**: 自绘标签页（paintEvent），支持关闭、拖拽排序、编号徽章、类型图标
+- **TitleTabBar**: 自绘标签页（paintEvent），所有元素均为自绘（编号徽章、类型图标、文字、关闭按钮×），自定义拖拽排序（禁用 Qt 内置 movable/closable，避免内部 widget 与自绘不同步）
 - **TabBarScrollContainer**: 包裹标签栏，标签溢出时支持滚动
 - **AddTabButton (+)**: 紧贴标签栏右侧，弹出添加菜单
 - **TabNavButton (<, >, V)**: 标签页导航按钮
@@ -171,7 +171,7 @@ Views (UI) → ViewModels (逻辑) → Services (业务) → Models (数据)
 
 图标映射定义在 `AddTabMenu.TAB_ICONS`（`views/sidebar/add_tab_menu.py`）。
 
-标签元数据通过 `QTabBar.setTabData()` 存储 `{"type", "icon", "number"}`，编号在创建时由 `MainWindow._next_tab_number` 自增计数器分配，只增不减。
+标签元数据通过 `QTabBar.setTabData()` 存储 `{"type", "icon", "number"}`，编号在创建时由 `MainWindow._next_tab_number` 自增计数器分配，只增不减。拖拽排序通过 `moveTab()` + `tabMoved` 信号同步 QStackedWidget 中的 widget 顺序。
 
 ## 配置说明
 

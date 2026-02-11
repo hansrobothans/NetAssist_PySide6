@@ -12,8 +12,8 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QApplication, QTabBar
-from PySide6.QtCore import Qt, QRectF, Signal, QSize
-from PySide6.QtGui import QPainter, QColor, QMouseEvent, QPalette
+from PySide6.QtCore import Qt, QRectF, Signal, QSize, QRect
+from PySide6.QtGui import QPainter, QColor, QMouseEvent, QPalette, QPen
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QByteArray
 
@@ -121,14 +121,21 @@ class TitleTabBar(QTabBar):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("titleTabBar")
-        self.setTabsClosable(True)
-        self.setMovable(True)
+        self.setTabsClosable(False)  # 自绘关闭按钮，不用 Qt 内置 widget
+        self.setMovable(False)  # 禁用 Qt 内置拖拽，自己实现
         self.setExpanding(False)
         self.setDrawBase(False)
         self.setElideMode(Qt.ElideRight)
         self.setMouseTracking(True)
         self.setUsesScrollButtons(False)
         self._hover_index = -1
+        self._hover_close_index = -1  # 悬停在 × 按钮上的标签索引
+
+        # 自定义拖拽状态
+        self._drag_index = -1
+        self._drag_start_x = 0
+        self._drag_offset = 0
+        self._drag_threshold = 5
 
         # 主题颜色（默认浅色）
         self._color_bg = QColor("#f0f0f0")
@@ -202,93 +209,173 @@ class TitleTabBar(QTabBar):
         # 绘制整体背景
         painter.fillRect(self.rect(), self._color_bg)
 
+        # 先绘制非拖拽标签，再绘制拖拽中的标签（使其在最上层）
         for i in range(self.count()):
-            rect = self.tabRect(i)
-            is_selected = (i == self.currentIndex())
-            is_hovered = (i == self._hover_index and not is_selected)
+            if i == self._drag_index:
+                continue
+            self._paint_tab(painter, i, offset_x=0)
 
-            # ── 标签页背景 ──
-            if is_selected:
-                painter.fillRect(rect, self._color_tab_active)
-                # 选中标签顶部蓝色指示条
-                painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._color_accent)
-                text_color = self._color_text_active
-            elif is_hovered:
-                painter.fillRect(rect, self._color_tab_hover)
-                text_color = self._color_text_hover
-            else:
-                text_color = self._color_text
-
-            # ── 获取标签元数据 ──
-            data = self.tabData(i) or {}
-            number = data.get("number", i + 1)
-            icon_name = data.get("icon", "")
-
-            cursor_x = rect.x() + 10
-
-            # ── 编号徽章（electerm 风格药丸形） ──
-            badge_text = str(number)
-            badge_font = painter.font()
-            badge_font.setPixelSize(10)
-            badge_font.setBold(is_selected)
-            painter.setFont(badge_font)
-            badge_text_width = painter.fontMetrics().horizontalAdvance(badge_text)
-            badge_w = max(badge_text_width + 10, 18)
-            badge_h = 14
-            badge_y = rect.y() + (rect.height() - badge_h) // 2
-
-            badge_rect = QRectF(cursor_x, badge_y, badge_w, badge_h)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(self._color_badge_bg)
-            # 左侧圆角大，右侧圆角小（药丸形）
-            painter.drawRoundedRect(badge_rect, 7, 7)
-            # 右侧覆盖为小圆角
-            right_rect = QRectF(cursor_x + badge_w / 2, badge_y, badge_w / 2, badge_h)
-            painter.drawRoundedRect(right_rect, 2, 2)
-
-            # 徽章数字
-            painter.setPen(self._color_badge_text)
-            painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
-
-            cursor_x += badge_w + 4
-
-            # ── 类型图标 ──
-            if icon_name and icon_name in ICONS:
-                icon_size = 14
-                icon_y = rect.y() + (rect.height() - icon_size) // 2
-
-                svg_str = ICONS[icon_name]
-                svg_str = svg_str.replace(
-                    'fill="currentColor"', f'fill="{text_color.name()}"'
-                )
-                svg_data = QByteArray(svg_str.encode('utf-8'))
-                renderer = QSvgRenderer(svg_data)
-                renderer.render(painter, QRectF(cursor_x, icon_y, icon_size, icon_size))
-
-                cursor_x += icon_size + 4
-
-            # ── 标签文字 ──
-            text_font = painter.font()
-            text_font.setPixelSize(12)
-            text_font.setBold(False)
-            painter.setFont(text_font)
-            painter.setPen(text_color)
-
-            text_rect = rect.adjusted(0, 2, -24, 0)
-            text_rect.setLeft(cursor_x)
-            elided = painter.fontMetrics().elidedText(
-                self.tabText(i), Qt.TextElideMode.ElideRight, text_rect.width()
-            )
-            painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided)
+        if self._drag_index >= 0:
+            self._paint_tab(painter, self._drag_index, offset_x=self._drag_offset)
 
         painter.end()
 
+    def _paint_tab(self, painter, i, offset_x=0):
+        """绘制单个标签页.
+
+        :param painter: 画笔
+        :param i: 标签页索引
+        :param offset_x: 水平偏移量（拖拽时使用）
+        """
+        rect = self.tabRect(i)
+        if offset_x:
+            rect = rect.translated(offset_x, 0)
+
+        is_selected = (i == self.currentIndex())
+        is_hovered = (i == self._hover_index and not is_selected)
+        is_dragging = (i == self._drag_index)
+
+        # ── 标签页背景 ──
+        if is_selected or is_dragging:
+            painter.fillRect(rect, self._color_tab_active)
+            # 选中标签顶部蓝色指示条
+            painter.fillRect(rect.x(), rect.y(), rect.width(), 2, self._color_accent)
+            text_color = self._color_text_active
+        elif is_hovered:
+            painter.fillRect(rect, self._color_tab_hover)
+            text_color = self._color_text_hover
+        else:
+            text_color = self._color_text
+
+        # ── 获取标签元数据 ──
+        data = self.tabData(i) or {}
+        number = data.get("number", i + 1)
+        icon_name = data.get("icon", "")
+
+        cursor_x = rect.x() + 10
+
+        # ── 编号徽章（electerm 风格药丸形） ──
+        badge_text = str(number)
+        badge_font = painter.font()
+        badge_font.setPixelSize(10)
+        badge_font.setBold(is_selected)
+        painter.setFont(badge_font)
+        badge_text_width = painter.fontMetrics().horizontalAdvance(badge_text)
+        badge_w = max(badge_text_width + 10, 18)
+        badge_h = 14
+        badge_y = rect.y() + (rect.height() - badge_h) // 2
+
+        badge_rect = QRectF(cursor_x, badge_y, badge_w, badge_h)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self._color_badge_bg)
+        # 左侧圆角大，右侧圆角小（药丸形）
+        painter.drawRoundedRect(badge_rect, 7, 7)
+        # 右侧覆盖为小圆角
+        right_rect = QRectF(cursor_x + badge_w / 2, badge_y, badge_w / 2, badge_h)
+        painter.drawRoundedRect(right_rect, 2, 2)
+
+        # 徽章数字
+        painter.setPen(self._color_badge_text)
+        painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
+
+        cursor_x += badge_w + 4
+
+        # ── 类型图标 ──
+        if icon_name and icon_name in ICONS:
+            icon_size = 14
+            icon_y = rect.y() + (rect.height() - icon_size) // 2
+
+            svg_str = ICONS[icon_name]
+            svg_str = svg_str.replace(
+                'fill="currentColor"', f'fill="{text_color.name()}"'
+            )
+            svg_data = QByteArray(svg_str.encode('utf-8'))
+            renderer = QSvgRenderer(svg_data)
+            renderer.render(painter, QRectF(cursor_x, icon_y, icon_size, icon_size))
+
+            cursor_x += icon_size + 4
+
+        # ── 标签文字 ──
+        text_font = painter.font()
+        text_font.setPixelSize(12)
+        text_font.setBold(False)
+        painter.setFont(text_font)
+        painter.setPen(text_color)
+
+        text_rect = rect.adjusted(0, 2, -24, 0)
+        text_rect.setLeft(cursor_x)
+        elided = painter.fontMetrics().elidedText(
+            self.tabText(i), Qt.TextElideMode.ElideRight, text_rect.width()
+        )
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided)
+
+        # ── 关闭按钮 × ──
+        close_size = 16
+        close_x = rect.right() - close_size - 4
+        close_y = rect.y() + (rect.height() - close_size) // 2
+        close_color = self._color_text_hover if (i == self._hover_close_index) else self._color_text
+        painter.setPen(QPen(close_color, 1.2))
+        m = 4  # × 线条内边距
+        painter.drawLine(close_x + m, close_y + m, close_x + close_size - m, close_y + close_size - m)
+        painter.drawLine(close_x + close_size - m, close_y + m, close_x + m, close_y + close_size - m)
+
+    def _close_btn_rect(self, index, offset_x=0):
+        """返回指定标签页的关闭按钮 × 区域."""
+        rect = self.tabRect(index)
+        if offset_x:
+            rect = rect.translated(offset_x, 0)
+        close_size = 16
+        close_x = rect.right() - close_size - 4
+        close_y = rect.y() + (rect.height() - close_size) // 2
+        return QRect(close_x, close_y, close_size, close_size)
+
     def mouseMoveEvent(self, event: QMouseEvent):
-        """跟踪悬停标签页索引，空白区域交给父级."""
-        index = self.tabAt(event.position().toPoint())
+        """处理拖拽排序和悬停状态."""
+        pos = event.position().toPoint()
+
+        # 拖拽检测与处理
+        if self._drag_start_x and self._drag_index < 0:
+            if abs(pos.x() - self._drag_start_x) > self._drag_threshold:
+                self._drag_index = self.tabAt(pos)
+
+        if self._drag_index >= 0:
+            self._drag_offset = pos.x() - self._drag_start_x
+
+            # 检查是否需要与相邻标签交换
+            drag_rect = self.tabRect(self._drag_index)
+            drag_center = drag_rect.center().x() + self._drag_offset
+
+            if self._drag_index > 0:
+                left_rect = self.tabRect(self._drag_index - 1)
+                if drag_center < left_rect.center().x():
+                    self.moveTab(self._drag_index, self._drag_index - 1)
+                    self._drag_index -= 1
+                    self._drag_start_x = pos.x()
+                    self._drag_offset = 0
+
+            if self._drag_index < self.count() - 1:
+                right_rect = self.tabRect(self._drag_index + 1)
+                if drag_center > right_rect.center().x():
+                    self.moveTab(self._drag_index, self._drag_index + 1)
+                    self._drag_index += 1
+                    self._drag_start_x = pos.x()
+                    self._drag_offset = 0
+
+            self.update()
+            return
+
+        # 正常悬停跟踪
+        index = self.tabAt(pos)
         if index != self._hover_index:
             self._hover_index = index
             self.update()
+
+        # × 按钮悬停检测
+        old_hover_close = self._hover_close_index
+        self._hover_close_index = index if (index >= 0 and self._close_btn_rect(index).contains(pos)) else -1
+        if self._hover_close_index != old_hover_close:
+            self.update()
+
         if index >= 0:
             super().mouseMoveEvent(event)
         else:
@@ -297,16 +384,32 @@ class TitleTabBar(QTabBar):
     def leaveEvent(self, event):
         """鼠标离开时清除悬停状态."""
         self._hover_index = -1
+        self._hover_close_index = -1
         self.update()
         super().leaveEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
-        """点击 tab 时正常处理，点击空白区域交给父级处理拖拽."""
-        index = self.tabAt(event.position().toPoint())
+        """点击 tab 时记录拖拽起点，点击 × 关闭标签，点击空白区域交给父级."""
+        pos = event.position().toPoint()
+        index = self.tabAt(pos)
         if index >= 0:
+            # 检测 × 按钮点击
+            if event.button() == Qt.MouseButton.LeftButton:
+                if self._close_btn_rect(index).contains(pos):
+                    self.tabCloseRequested.emit(index)
+                    return
+                self._drag_start_x = pos.x()
             super().mousePressEvent(event)
         else:
             event.ignore()
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """结束拖拽."""
+        self._drag_index = -1
+        self._drag_start_x = 0
+        self._drag_offset = 0
+        self.update()
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         """双击空白区域交给父级处理."""
